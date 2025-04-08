@@ -154,120 +154,69 @@ def upload_and_preprocess():
             # Display data preview
             st.markdown('<p class="section-title">Data Preview</p>', unsafe_allow_html=True)
             st.dataframe(data.head())
-            
-            # Data preprocessing options
+
             st.markdown('<p class="section-title">Data Preprocessing</p>', unsafe_allow_html=True)
-            with st.expander("Data Preprocessing Options", expanded=True):
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.subheader("Date Columns")
-                    date_cols = st.multiselect(
-                        "Select date columns to convert",
-                        options=data.columns.tolist(),
-                        default=[col for col in data.columns if 'DATE' in col]
-                    )
-                
-                with col2:
-                    st.subheader("Missing Values Strategy")
-                    handle_missing = st.checkbox("Handle missing values", value=True)
-                    missing_strategy = st.radio(
-                        "Strategy for numeric columns",
-                        options=["Mean", "Median", "Zero", "None"],
-                        index=1,
-                        disabled=not handle_missing
-                    )
-                    
-                    categorical_strategy = st.radio(
-                        "Strategy for categorical columns",
-                        options=["Mode", "Fill with 'Unknown'", "None"],
-                        index=0,
-                        disabled=not handle_missing
-                    )
-            
+            date_cols = [col for col in data.columns if 'DATE' in col]
+            date_cols = st.multiselect("Select date columns to convert", options=data.columns.tolist(), default=date_cols)
+
             if st.button("Preprocess Data"):
                 with st.spinner("Preprocessing data..."):
-                    # Make a copy of the data
-                    processed_data = data.copy()  # mempertahankan semua kolo
-                    
+                    processed_data = data.copy()
+
                     # Convert date columns
                     for col in date_cols:
                         processed_data[col] = pd.to_datetime(processed_data[col], errors='coerce')
-                    
-                    # Calculate age if birth date column exists
+
+                    # Hitung usia jika ada kolom BIRTH_DATE
                     if 'BIRTH_DATE' in processed_data.columns:
                         current_year = datetime.datetime.now().year
                         processed_data['Usia'] = current_year - processed_data['BIRTH_DATE'].dt.year
-                    
-                    # Handle missing values if enabled
-                    # Handle missing values if enabled
-        # Handle missing values if enabled
-if handle_missing:
-    numeric_cols = processed_data.select_dtypes(include=['int64', 'float64']).columns
-    categorical_cols = processed_data.select_dtypes(include=['object']).columns
 
-    # Tangani numeric columns (pakai median untuk lebih stabil)
-    for col in numeric_cols:
-        if processed_data[col].isnull().sum() > 0:
-            processed_data[col].fillna(processed_data[col].median(), inplace=True)
+                    # === Default Strategy ===
+                    # Median untuk numeric, Mode untuk categorical
+                    numeric_cols = processed_data.select_dtypes(include=['int64', 'float64']).columns
+                    categorical_cols = processed_data.select_dtypes(include=['object']).columns
 
-    # Tangani categorical columns
-    for col in categorical_cols:
-        if processed_data[col].isnull().sum() > 0:
-            processed_data[col].fillna(processed_data[col].mode()[0], inplace=True)
+                    for col in numeric_cols:
+                        if processed_data[col].isnull().sum() > 0:
+                            processed_data[col].fillna(processed_data[col].median(), inplace=True)
 
-    # Drop kolom rusak kalau ada
-    if 'JMH_CON_NON_MPF' in processed_data.columns:
-        processed_data.drop(columns=['JMH_CON_NON_MPF'], inplace=True)
-                       
-                    # Add data processing timestamp
+                    for col in categorical_cols:
+                        if processed_data[col].isnull().sum() > 0:
+                            processed_data[col].fillna(processed_data[col].mode()[0], inplace=True)
+
+                    if 'JMH_CON_NON_MPF' in processed_data.columns:
+                        processed_data.drop(columns=['JMH_CON_NON_MPF'], inplace=True)
+
                     processed_data['PROCESSING_DATE'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    # Add Multi-Transaction_Customer column
-                    processed_data["Multi-Transaction_Customer"] = processed_data["TOTAL_PRODUCT_MPF"].apply(lambda x: 1 if x > 1 else 0)
+                    if "TOTAL_PRODUCT_MPF" in processed_data.columns:
+                        processed_data["Multi-Transaction_Customer"] = processed_data["TOTAL_PRODUCT_MPF"].apply(lambda x: 1 if x > 1 else 0)
 
-                    # Success message and preview of results
                     st.success("Data preprocessing completed!")
-                    st.markdown('<p class="section-title">Preprocessing Results</p>', unsafe_allow_html=True)
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write("Missing values before preprocessing:")
-                        st.dataframe(data.isnull().sum())
-                    
-                    with col2:
-                        st.write("Missing values after preprocessing:")
-                        st.dataframe(processed_data.isnull().sum())
-                    
-                    st.write("Processed data preview:")
                     st.dataframe(processed_data.head())
-                    
-                    # Store processed data in session state and save to temp file
+
                     st.session_state.data = processed_data
                     processed_data.to_excel("temp/processed_data.xlsx", index=False)
-                    
-                    st.markdown("### Next Steps")
-                    st.info("You can now proceed to the Exploratory Data Analysis section to visualize and understand your data patterns.")
-                    
                     st.session_state.eda_completed = True
-        
+
+                    st.markdown("### Next Steps")
+                    st.info("You can now proceed to the Exploratory Data Analysis section.")
+
         except Exception as e:
             st.error(f"Error: {e}")
             st.warning("Please check your file and try again.")
+    
     else:
         if st.button("Use Example Data"):
             example_data = create_example_data()
             st.success("Example data loaded successfully!")
-            
             st.session_state.data = example_data
             st.session_state.uploaded_file_name = "example_data.xlsx"
             example_data.to_excel("temp/processed_data.xlsx", index=False)
-            
-            st.markdown('<p class="section-title">Example Data Preview</p>', unsafe_allow_html=True)
             st.dataframe(example_data.head())
-            
             st.session_state.eda_completed = True
             st.markdown("### Next Steps")
-            st.info("You can now proceed to the Exploratory Data Analysis section to visualize and understand your data patterns.")
+            st.info("You can now proceed to the Exploratory Data Analysis section.")
 
 # Function to create example data
 def create_example_data(n=500):
