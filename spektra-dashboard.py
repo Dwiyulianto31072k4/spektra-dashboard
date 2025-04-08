@@ -380,17 +380,20 @@ def segmentation_analysis():
 
             features = ['Recency', 'Frequency_log', 'Monetary_log', 'Multi-Transaction_Customer', 'Usia_Segment']
             rfm_scaled = rfm[features].apply(zscore)
-            # Tangani missing value di rfm_scaled
-    if rfm_scaled.isnull().values.any():
-        st.warning("Terdapat data kosong (NaN) dalam data clustering. Baris-baris tersebut akan dihapus.")
-        rfm_scaled = rfm_scaled.dropna()
-        rfm = rfm.loc[rfm_scaled.index]
-        
-    kmeans = KMeans(n_clusters=cluster_k, random_state=42, n_init='auto')
-    rfm['Cluster'] = kmeans.fit_predict(rfm_scaled)
 
+            # Tangani missing value di rfm_scaled
+            if rfm_scaled.isnull().values.any():
+                st.warning("Terdapat data kosong (NaN) dalam data clustering. Baris-baris tersebut akan dihapus.")
+                rows_before = rfm_scaled.shape[0]
+                rfm_scaled = rfm_scaled.dropna()
+                rfm = rfm.loc[rfm_scaled.index]
+                rows_after = rfm_scaled.shape[0]
+                st.info(f"{rows_before - rows_after} baris dihapus karena mengandung NaN.")
+
+            # Lakukan clustering
             kmeans = KMeans(n_clusters=cluster_k, random_state=42, n_init='auto')
             rfm['Cluster'] = kmeans.fit_predict(rfm_scaled)
+
 
             cluster_score = rfm.groupby('Cluster').agg({
                 'Recency': 'mean',
