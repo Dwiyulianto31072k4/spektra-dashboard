@@ -188,7 +188,7 @@ def upload_and_preprocess():
             if st.button("Preprocess Data"):
                 with st.spinner("Preprocessing data..."):
                     # Make a copy of the data
-                    processed_data = data.copy()
+                    processed_data = data.copy()  # mempertahankan semua kolo
                     
                     # Convert date columns
                     for col in date_cols:
@@ -222,7 +222,9 @@ def upload_and_preprocess():
                                     
                     # Add data processing timestamp
                     processed_data['PROCESSING_DATE'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    
+                    # Add Multi-Transaction_Customer column
+                    processed_data["Multi-Transaction_Customer"] = processed_data["TOTAL_PRODUCT_MPF"].apply(lambda x: 1 if x > 1 else 0)
+
                     # Success message and preview of results
                     st.success("Data preprocessing completed!")
                     st.markdown('<p class="section-title">Preprocessing Results</p>', unsafe_allow_html=True)
@@ -354,6 +356,7 @@ def segmentation_analysis():
     if st.button("Lakukan Segmentasi"):
         with st.spinner("Memproses segmentasi..."):
             now = df[recency_col].max() + pd.Timedelta(days=1)
+            st.write("Kolom tersedia di df saat segmentasi:", df.columns.tolist())
             rfm = df.groupby('CUST_NO').agg({
                 recency_col: 'max',
                 freq_col: 'sum',
