@@ -663,12 +663,13 @@ def exploratory_data_analysis():
                 product_amount = data.groupby('MPF_CATEGORIES_TAKEN')['TOTAL_AMOUNT_MPF'].mean().reset_index()
                 product_amount.columns = ['Product Category', 'Average Amount']
                 
-                fig = px.bar(product_amount, 
-                            x='Product Category', 
-                            y='Average Amount',
-                            title="Average Transaction Amount by Product Category",
-                            color='Average Amount',
-                            color_continuous_scale=px.colors.
+             fig = px.bar(product_amount, 
+             x='Product Category', 
+             y='Average Amount',
+             title="Average Transaction Amount by Product Category",
+             color='Average Amount',
+             color_continuous_scale=px.colors.sequential.Blues)
+
 
               import streamlit as st
 
