@@ -201,22 +201,24 @@ def upload_and_preprocess():
                     
                     # Handle missing values if enabled
                     # Handle missing values if enabled
-           if handle_missing:
-               numeric_cols = processed_data.select_dtypes(include=['int64', 'float64']).columns
-               categorical_cols = processed_data.select_dtypes(include=['object']).columns
-             # Tangani numeric columns (pakai median untuk lebih stabil)
-               for col in numeric_cols:
-                   if processed_data[col].isnull().sum() > 0:
-                       processed_data[col].fillna(processed_data[col].median(), inplace=True)
+        # Handle missing values if enabled
+if handle_missing:
+    numeric_cols = processed_data.select_dtypes(include=['int64', 'float64']).columns
+    categorical_cols = processed_data.select_dtypes(include=['object']).columns
+
+    # Tangani numeric columns (pakai median untuk lebih stabil)
+    for col in numeric_cols:
+        if processed_data[col].isnull().sum() > 0:
+            processed_data[col].fillna(processed_data[col].median(), inplace=True)
 
     # Tangani categorical columns
-               for col in categorical_cols:
-                   if processed_data[col].isnull().sum() > 0:
-                       processed_data[col].fillna(processed_data[col].mode()[0], inplace=True)
+    for col in categorical_cols:
+        if processed_data[col].isnull().sum() > 0:
+            processed_data[col].fillna(processed_data[col].mode()[0], inplace=True)
 
     # Drop kolom rusak kalau ada
-               if 'JMH_CON_NON_MPF' in processed_data.columns:
-                   processed_data.drop(columns=['JMH_CON_NON_MPF'], inplace=True)
+    if 'JMH_CON_NON_MPF' in processed_data.columns:
+        processed_data.drop(columns=['JMH_CON_NON_MPF'], inplace=True)
                        
                     # Add data processing timestamp
                     processed_data['PROCESSING_DATE'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
