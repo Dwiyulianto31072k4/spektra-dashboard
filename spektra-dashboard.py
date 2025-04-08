@@ -635,7 +635,8 @@ def exploratory_data_analysis():
             if 'TOTAL_AMOUNT_MPF' in data.columns and 'MPF_CATEGORIES_TAKEN' in data.columns:
         # Konversi ke numeric untuk mencegah error
                 data['TOTAL_AMOUNT_MPF'] = pd.to_numeric(data['TOTAL_AMOUNT_MPF'], errors='coerce')
-                product_amount = data.groupby('MPF_CATEGORIES_TAKEN')['TOTAL_AMOUNT_MPF'].mean().reset_index()product_amount.columns = ['Product Category', 'Average Amount']
+                product_amount = data.groupby('MPF_CATEGORIES_TAKEN')['TOTAL_AMOUNT_MPF'].mean().reset_index()
+                product_amount.columns = ['Product Category', 'Average Amount']
                 fig = px.bar(
                     product_amount, 
                     x='Product Category', 
