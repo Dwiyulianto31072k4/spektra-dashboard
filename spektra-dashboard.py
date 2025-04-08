@@ -223,13 +223,10 @@ def upload_and_preprocess():
                     # Add data processing timestamp
                     processed_data['PROCESSING_DATE'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
-                    # Success message
+                    # Success message and preview of results
                     st.success("Data preprocessing completed!")
-                    
-                    # Show preprocessing results
                     st.markdown('<p class="section-title">Preprocessing Results</p>', unsafe_allow_html=True)
                     
-                    # Display missing values count before and after
                     col1, col2 = st.columns(2)
                     with col1:
                         st.write("Missing values before preprocessing:")
@@ -239,86 +236,54 @@ def upload_and_preprocess():
                         st.write("Missing values after preprocessing:")
                         st.dataframe(processed_data.isnull().sum())
                     
-                    # Show processed data preview
                     st.write("Processed data preview:")
                     st.dataframe(processed_data.head())
                     
-                    # Store processed data in session state
+                    # Store processed data in session state and save to temp file
                     st.session_state.data = processed_data
-                    
-                    # Save processed data to temp file for future steps
                     processed_data.to_excel("temp/processed_data.xlsx", index=False)
                     
                     st.markdown("### Next Steps")
                     st.info("You can now proceed to the Exploratory Data Analysis section to visualize and understand your data patterns.")
                     
-                    # Enable EDA
                     st.session_state.eda_completed = True
         
         except Exception as e:
             st.error(f"Error: {e}")
             st.warning("Please check your file and try again.")
     else:
-        # Show example data option
         if st.button("Use Example Data"):
-            # Create example data similar to SPEKTRA customer data
             example_data = create_example_data()
-            
             st.success("Example data loaded successfully!")
             
-            # Store example data in session state
             st.session_state.data = example_data
             st.session_state.uploaded_file_name = "example_data.xlsx"
-            
-            # Save example data to temp file
             example_data.to_excel("temp/processed_data.xlsx", index=False)
             
-            # Display data preview
             st.markdown('<p class="section-title">Example Data Preview</p>', unsafe_allow_html=True)
             st.dataframe(example_data.head())
             
-            # Enable EDA
             st.session_state.eda_completed = True
-            
             st.markdown("### Next Steps")
             st.info("You can now proceed to the Exploratory Data Analysis section to visualize and understand your data patterns.")
 
 # Function to create example data
 def create_example_data(n=500):
-    # Set random seed for reproducibility
     np.random.seed(42)
-    
-    # Generate customer IDs
     cust_ids = [f"1010000{i:05d}" for i in range(1, n+1)]
-    
-    # Generate product categories
     product_categories = ['GADGET', 'ELECTRONIC', 'FURNITURE', 'OTHER']
-    product_weights = [0.4, 0.3, 0.2, 0.1]  # More gadgets and electronics
-    
-    # PPC types
+    product_weights = [0.4, 0.3, 0.2, 0.1]
     ppc_types = ['MPF', 'REFI', 'NMC']
-    
-    # Gender
     genders = ['M', 'F']
-    
-    # Education
     education = ['SD', 'SMP', 'SMA', 'S1', 'S2', 'S3']
-    
-    # House status
     house_status = ['H01', 'H02', 'H03', 'H04', 'H05']
-    
-    # Marital status
     marital_status = ['M', 'S', 'D']
-    
-    # Areas (simplified)
     areas = ['JATA 1', 'JATA 2', 'JATA 3', 'SULSEL', 'KALSEL', 'SUMSEL']
     
-    # Generate dates within a time range
     start_date = pd.Timestamp('2018-01-01')
     end_date = pd.Timestamp('2023-12-31')
     date_range = (end_date - start_date).days
     
-    # Create dataframe
     df = pd.DataFrame({
         'CUST_NO': cust_ids,
         'FIRST_PPC': np.random.choice(ppc_types, size=n, p=[0.6, 0.3, 0.1]),
@@ -350,24 +315,18 @@ def create_example_data(n=500):
         'TOTAL_PRODUCT_MPF': np.random.randint(1, 5, size=n)
     })
     
-    # Adjust some values to make the example more realistic
-    
-    # Make sure MIN_MPF_AMOUNT is not greater than MAX_MPF_AMOUNT
+    # Adjust values for realism
     for i in range(len(df)):
         if df.loc[i, 'MIN_MPF_AMOUNT'] > df.loc[i, 'MAX_MPF_AMOUNT']:
             df.loc[i, 'MIN_MPF_AMOUNT'], df.loc[i, 'MAX_MPF_AMOUNT'] = df.loc[i, 'MAX_MPF_AMOUNT'], df.loc[i, 'MIN_MPF_AMOUNT']
     
-    # Ensure dates are correctly ordered
     for i in range(len(df)):
         if df.loc[i, 'FIRST_MPF_DATE'] > df.loc[i, 'LAST_MPF_DATE']:
             df.loc[i, 'FIRST_MPF_DATE'], df.loc[i, 'LAST_MPF_DATE'] = df.loc[i, 'LAST_MPF_DATE'], df.loc[i, 'FIRST_MPF_DATE']
-        
         if df.loc[i, 'FIRST_PPC_DATE'] > df.loc[i, 'FIRST_MPF_DATE']:
             df.loc[i, 'FIRST_PPC_DATE'] = df.loc[i, 'FIRST_MPF_DATE'] - pd.Timedelta(days=np.random.randint(1, 100))
     
-    # Calculate age
     df['Usia'] = 2024 - df['BIRTH_DATE'].dt.year
-    
     return df
 
 # Function for Exploratory Data Analysis (EDA)
@@ -379,113 +338,95 @@ def exploratory_data_analysis():
         return
     
     data = st.session_state.data
-    
-    # EDA options
     st.markdown("### Select Analysis Options")
     
     tab1, tab2, tab3 = st.tabs(["Distributions", "Customer Demographics", "Transaction Patterns"])
     
     with tab1:
         st.subheader("Distribution Analysis")
-        
         col1, col2 = st.columns(2)
         
         with col1:
-            # Numeric column distribution
             numeric_cols = data.select_dtypes(include=['int64', 'float64']).columns.tolist()
-            selected_num_col = st.selectbox("Select numeric column for distribution analysis", 
-                                           options=numeric_cols,
-                                           index=numeric_cols.index('TOTAL_AMOUNT_MPF') if 'TOTAL_AMOUNT_MPF' in numeric_cols else 0)
-            
-            # Apply log transform for better visualization?
+            selected_num_col = st.selectbox(
+                "Select numeric column for distribution analysis", 
+                options=numeric_cols,
+                index=numeric_cols.index('TOTAL_AMOUNT_MPF') if 'TOTAL_AMOUNT_MPF' in numeric_cols else 0
+            )
             log_transform = st.checkbox("Apply log transformation", value=True)
-            
-            # Create histogram
-            fig = px.histogram(data, 
-                              x=selected_num_col, 
-                              title=f"Distribution of {selected_num_col}",
-                              log_y=False,
-                              nbins=50,
-                              color_discrete_sequence=['#003366'])
-            
+            fig = px.histogram(
+                data, 
+                x=selected_num_col, 
+                title=f"Distribution of {selected_num_col}",
+                nbins=50,
+                color_discrete_sequence=['#003366']
+            )
             if log_transform and data[selected_num_col].min() > 0:
-                fig = px.histogram(data, 
-                                  x=np.log1p(data[selected_num_col]), 
-                                  title=f"Log Distribution of {selected_num_col}",
-                                  nbins=50,
-                                  color_discrete_sequence=['#003366'])
+                fig = px.histogram(
+                    data, 
+                    x=np.log1p(data[selected_num_col]), 
+                    title=f"Log Distribution of {selected_num_col}",
+                    nbins=50,
+                    color_discrete_sequence=['#003366']
+                )
                 fig.update_layout(xaxis_title=f"Log({selected_num_col})")
-            
             fig.update_layout(
                 height=400,
                 margin=dict(l=20, r=20, t=40, b=20),
                 paper_bgcolor="white",
                 plot_bgcolor="rgba(0,0,0,0)"
             )
-            
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            # Categorical column distribution
-            categorical_cols = data.select_dtypes(include=['object']).columns.tolist() + ['Usia_Kategori' if 'Usia_Kategori' in data.columns else None]
-            categorical_cols = [col for col in categorical_cols if col is not None]
-            
+            categorical_cols = data.select_dtypes(include=['object']).columns.tolist() + (['Usia_Kategori'] if 'Usia_Kategori' in data.columns else [])
             if len(categorical_cols) > 0:
-                selected_cat_col = st.selectbox("Select categorical column for distribution analysis", 
-                                              options=categorical_cols,
-                                              index=categorical_cols.index('MPF_CATEGORIES_TAKEN') if 'MPF_CATEGORIES_TAKEN' in categorical_cols else 0)
-                
-                # Count values and sort
+                selected_cat_col = st.selectbox(
+                    "Select categorical column for distribution analysis", 
+                    options=categorical_cols,
+                    index=categorical_cols.index('MPF_CATEGORIES_TAKEN') if 'MPF_CATEGORIES_TAKEN' in categorical_cols else 0
+                )
                 value_counts = data[selected_cat_col].value_counts().reset_index()
                 value_counts.columns = [selected_cat_col, 'Count']
-                
-                # Show top N categories only
                 top_n = st.slider("Show top N categories", min_value=5, max_value=30, value=10)
-                
-                # Create bar chart
-                fig = px.bar(value_counts.head(top_n), 
-                            x=selected_cat_col, 
-                            y='Count',
-                            title=f"Top {top_n} values of {selected_cat_col}",
-                            color='Count',
-                            color_continuous_scale=px.colors.sequential.Blues)
-                
+                fig = px.bar(
+                    value_counts.head(top_n), 
+                    x=selected_cat_col, 
+                    y='Count',
+                    title=f"Top {top_n} values of {selected_cat_col}",
+                    color='Count',
+                    color_continuous_scale=px.colors.sequential.Blues
+                )
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
                     paper_bgcolor="white",
                     plot_bgcolor="rgba(0,0,0,0)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("No categorical columns available.")
     
     with tab2:
         st.subheader("Customer Demographics")
-        
         col1, col2 = st.columns(2)
         
         with col1:
-            # Age distribution
             if 'Usia' in data.columns:
-                # Create age groups if they don't exist
                 if 'Usia_Kategori' not in data.columns:
                     bins = [0, 25, 35, 45, 55, 100]
                     labels = ['<25', '25-35', '35-45', '45-55', '55+']
                     data['Usia_Kategori'] = pd.cut(data['Usia'], bins=bins, labels=labels, right=False)
-                
-                # Plot age distribution
                 age_counts = data['Usia_Kategori'].value_counts().reset_index()
                 age_counts.columns = ['Age Group', 'Count']
-                
-                fig = px.pie(age_counts, 
-                            values='Count', 
-                            names='Age Group',
-                            title="Customer Age Distribution",
-                            hole=0.4,
-                            color_discrete_sequence=px.colors.sequential.Blues)
-                
+                fig = px.pie(
+                    age_counts, 
+                    values='Count', 
+                    names='Age Group',
+                    title="Customer Age Distribution",
+                    hole=0.4,
+                    color_discrete_sequence=px.colors.sequential.Blues
+                )
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
@@ -493,24 +434,22 @@ def exploratory_data_analysis():
                     paper_bgcolor="white",
                     plot_bgcolor="rgba(0,0,0,0)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Age data not available.")
         
         with col2:
-            # Gender distribution
             if 'CUST_SEX' in data.columns:
                 gender_counts = data['CUST_SEX'].value_counts().reset_index()
                 gender_counts.columns = ['Gender', 'Count']
-                
-                fig = px.pie(gender_counts, 
-                            values='Count', 
-                            names='Gender',
-                            title="Customer Gender Distribution",
-                            hole=0.4,
-                            color_discrete_sequence=['#003366', '#66b3ff'])
-                
+                fig = px.pie(
+                    gender_counts, 
+                    values='Count', 
+                    names='Gender',
+                    title="Customer Gender Distribution",
+                    hole=0.4,
+                    color_discrete_sequence=['#003366', '#66b3ff']
+                )
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
@@ -518,7 +457,6 @@ def exploratory_data_analysis():
                     paper_bgcolor="white",
                     plot_bgcolor="rgba(0,0,0,0)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Gender data not available.")
@@ -526,42 +464,39 @@ def exploratory_data_analysis():
         col1, col2 = st.columns(2)
         
         with col1:
-            # Education distribution
             if 'EDU_TYPE' in data.columns:
                 edu_counts = data['EDU_TYPE'].value_counts().reset_index()
                 edu_counts.columns = ['Education', 'Count']
-                
-                fig = px.bar(edu_counts, 
-                            x='Education', 
-                            y='Count',
-                            title="Customer Education Level",
-                            color='Count',
-                            color_continuous_scale=px.colors.sequential.Blues)
-                
+                fig = px.bar(
+                    edu_counts, 
+                    x='Education', 
+                    y='Count',
+                    title="Customer Education Level",
+                    color='Count',
+                    color_continuous_scale=px.colors.sequential.Blues
+                )
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
                     paper_bgcolor="white",
                     plot_bgcolor="rgba(0,0,0,0)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Education data not available.")
         
         with col2:
-            # Marital status distribution
             if 'MARITAL_STAT' in data.columns:
                 marital_counts = data['MARITAL_STAT'].value_counts().reset_index()
                 marital_counts.columns = ['Marital Status', 'Count']
-                
-                fig = px.pie(marital_counts, 
-                            values='Count', 
-                            names='Marital Status',
-                            title="Customer Marital Status",
-                            hole=0.4,
-                            color_discrete_sequence=px.colors.sequential.Blues)
-                
+                fig = px.pie(
+                    marital_counts, 
+                    values='Count', 
+                    names='Marital Status',
+                    title="Customer Marital Status",
+                    hole=0.4,
+                    color_discrete_sequence=px.colors.sequential.Blues
+                )
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
@@ -569,30 +504,26 @@ def exploratory_data_analysis():
                     paper_bgcolor="white",
                     plot_bgcolor="rgba(0,0,0,0)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Marital status data not available.")
     
     with tab3:
         st.subheader("Transaction Patterns")
-        
         col1, col2 = st.columns(2)
         
         with col1:
-            # Product category distribution
             if 'MPF_CATEGORIES_TAKEN' in data.columns:
-                # Count product categories
                 product_counts = data['MPF_CATEGORIES_TAKEN'].value_counts().reset_index()
                 product_counts.columns = ['Product Category', 'Count']
-                
-                fig = px.pie(product_counts, 
-                            values='Count', 
-                            names='Product Category',
-                            title="Product Category Distribution",
-                            hole=0.4,
-                            color_discrete_sequence=px.colors.sequential.Blues)
-                
+                fig = px.pie(
+                    product_counts, 
+                    values='Count', 
+                    names='Product Category',
+                    title="Product Category Distribution",
+                    hole=0.4,
+                    color_discrete_sequence=px.colors.sequential.Blues
+                )
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
@@ -600,110 +531,85 @@ def exploratory_data_analysis():
                     paper_bgcolor="white",
                     plot_bgcolor="rgba(0,0,0,0)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Product category data not available.")
         
         with col2:
-            # Transaction amount vs age
             if 'TOTAL_AMOUNT_MPF' in data.columns and 'Usia' in data.columns:
-                # Create scatter plot
-                fig = px.scatter(data, 
-                               x='Usia', 
-                               y='TOTAL_AMOUNT_MPF',
-                               title="Total Transaction Amount vs Age",
-                               color='TOTAL_AMOUNT_MPF',
-                               color_continuous_scale=px.colors.sequential.Blues,
-                               opacity=0.7)
-                
+                fig = px.scatter(
+                    data, 
+                    x='Usia', 
+                    y='TOTAL_AMOUNT_MPF',
+                    title="Total Transaction Amount vs Age",
+                    color='TOTAL_AMOUNT_MPF',
+                    color_continuous_scale=px.colors.sequential.Blues,
+                    opacity=0.7
+                )
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
                     paper_bgcolor="white",
                     plot_bgcolor="rgba(0,0,0,0)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Transaction amount or age data not available.")
         
         col1, col2 = st.columns(2)
-        
         with col1:
-            # Number of products purchased distribution
             if 'TOTAL_PRODUCT_MPF' in data.columns:
-                # Count products purchased
                 product_counts = data['TOTAL_PRODUCT_MPF'].value_counts().reset_index()
                 product_counts.columns = ['Products Purchased', 'Count']
                 product_counts = product_counts.sort_values('Products Purchased')
-                
-                fig = px.bar(product_counts, 
-                            x='Products Purchased', 
-                            y='Count',
-                            title="Number of Products Purchased Distribution",
-                            color='Count',
-                            color_continuous_scale=px.colors.sequential.Blues)
-                
+                fig = px.bar(
+                    product_counts, 
+                    x='Products Purchased', 
+                    y='Count',
+                    title="Number of Products Purchased Distribution",
+                    color='Count',
+                    color_continuous_scale=px.colors.sequential.Blues
+                )
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
                     paper_bgcolor="white",
                     plot_bgcolor="rgba(0,0,0,0)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Number of products data not available.")
         
-with col2:
-    if 'TOTAL_AMOUNT_MPF' in data.columns and 'MPF_CATEGORIES_TAKEN' in data.columns:
-        product_amount = data.groupby('MPF_CATEGORIES_TAKEN')['TOTAL_AMOUNT_MPF'].mean().reset_index()
-        product_amount.columns = ['Product Category', 'Average Amount']
-
-        fig = px.bar(product_amount, 
-                     x='Product Category', 
-                     y='Average Amount',
-                     title="Average Transaction Amount by Product Category",
-                     color='Average Amount',
-                     color_continuous_scale=px.colors.sequential.Blues)
-
-        fig.update_layout(
-            height=400,
-            margin=dict(l=20, r=20, t=40, b=20),
-            paper_bgcolor="white",
-            plot_bgcolor="rgba(0,0,0,0)"
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Required columns not available for this visualization.")
-
-
-                fig = px.bar(product_amount, 
-                            x='Product Category', 
-                            y='Average Amount',
-                            title="Average Transaction Amount by Product Category",
-                            color='Average Amount',
-                            color_continuous_scale=px.colors.sequential.Blues)
-                
+        # Additional visualization: Average Transaction Amount by Product Category
+        with st.container():
+            if 'TOTAL_AMOUNT_MPF' in data.columns and 'MPF_CATEGORIES_TAKEN' in data.columns:
+                product_amount = data.groupby('MPF_CATEGORIES_TAKEN')['TOTAL_AMOUNT_MPF'].mean().reset_index()
+                product_amount.columns = ['Product Category', 'Average Amount']
+                fig = px.bar(
+                    product_amount, 
+                    x='Product Category', 
+                    y='Average Amount',
+                    title="Average Transaction Amount by Product Category",
+                    color='Average Amount',
+                    color_continuous_scale=px.colors.sequential.Blues
+                )
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
                     paper_bgcolor="white",
                     plot_bgcolor="rgba(0,0,0,0)"
                 )
-                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Required columns not available for this visualization.")
 
-# Call the appropriate page function based on selected navigation
+# Navigation routing
 if selected_page == "Upload & Preprocessing":
     upload_and_preprocess()
 elif selected_page == "Exploratory Data Analysis":
     exploratory_data_analysis()
-# The other navigation pages like segmentation, promo mapping, dashboard etc. should follow here...
+# Additional pages like "Segmentation Analysis", "Promo Mapping", "Dashboard", and "Export & Documentation"
+# should be implemented similarly.
 
 # Footer
 st.markdown("""
