@@ -200,26 +200,24 @@ def upload_and_preprocess():
                         processed_data['Usia'] = current_year - processed_data['BIRTH_DATE'].dt.year
                     
                     # Handle missing values if enabled
-                    if handle_missing:
-                        numeric_cols = processed_data.select_dtypes(include=['int64', 'float64']).columns
-                        categorical_cols = processed_data.select_dtypes(include=['object']).columns
-                        
-                        for col in numeric_cols:
-                            if processed_data[col].isnull().sum() > 0:
-                                if missing_strategy == "Mean":
-                                    processed_data[col].fillna(processed_data[col].mean(), inplace=True)
-                                elif missing_strategy == "Median":
-                                    processed_data[col].fillna(processed_data[col].median(), inplace=True)
-                                elif missing_strategy == "Zero":
-                                    processed_data[col].fillna(0, inplace=True)
-                        
-                        for col in categorical_cols:
-                            if processed_data[col].isnull().sum() > 0:
-                                if categorical_strategy == "Mode":
-                                    processed_data[col].fillna(processed_data[col].mode()[0], inplace=True)
-                                elif categorical_strategy == "Fill with 'Unknown'":
-                                    processed_data[col].fillna("Unknown", inplace=True)
-                                    
+                    # Handle missing values if enabled
+           if handle_missing:
+               numeric_cols = processed_data.select_dtypes(include=['int64', 'float64']).columns
+               categorical_cols = processed_data.select_dtypes(include=['object']).columns
+             # Tangani numeric columns (pakai median untuk lebih stabil)
+               for col in numeric_cols:
+                   if processed_data[col].isnull().sum() > 0:
+                       processed_data[col].fillna(processed_data[col].median(), inplace=True)
+
+    # Tangani categorical columns
+               for col in categorical_cols:
+                   if processed_data[col].isnull().sum() > 0:
+                       processed_data[col].fillna(processed_data[col].mode()[0], inplace=True)
+
+    # Drop kolom rusak kalau ada
+               if 'JMH_CON_NON_MPF' in processed_data.columns:
+                   processed_data.drop(columns=['JMH_CON_NON_MPF'], inplace=True)
+                       
                     # Add data processing timestamp
                     processed_data['PROCESSING_DATE'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     # Add Multi-Transaction_Customer column
@@ -383,12 +381,8 @@ def segmentation_analysis():
 
             # Tangani missing value di rfm_scaled
             if rfm_scaled.isnull().values.any():
-                st.warning("Terdapat data kosong (NaN) dalam data clustering. Baris-baris tersebut akan dihapus.")
-                rows_before = rfm_scaled.shape[0]
-                rfm_scaled = rfm_scaled.dropna()
-                rfm = rfm.loc[rfm_scaled.index]
-                rows_after = rfm_scaled.shape[0]
-                st.info(f"{rows_before - rows_after} baris dihapus karena mengandung NaN.")
+                st.warning("Terdapat NaN dalam data clustering. Mengisi NaN dengan median agar tidak kehilangan seluruh data.")
+                rfm_scaled = rfm_scaled.fillna(rfm_scaled.median())
 
             # Lakukan clustering
             kmeans = KMeans(n_clusters=cluster_k, random_state=42, n_init='auto')
