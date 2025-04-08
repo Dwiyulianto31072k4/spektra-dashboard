@@ -341,6 +341,11 @@ def segmentation_analysis():
 
     df = st.session_state.data.copy()
 
+    # Pastikan kolom 'Multi-Transaction_Customer' ada
+    if 'Multi-Transaction_Customer' not in df.columns and 'TOTAL_PRODUCT_MPF' in df.columns:
+        df["Multi-Transaction_Customer"] = df["TOTAL_PRODUCT_MPF"].apply(lambda x: 1 if x > 1 else 0)
+
+
     # Pilih kolom untuk RFM
     st.markdown("### Pilih Kolom RFM dan Parameter Clustering")
     col1, col2, col3 = st.columns(3)
