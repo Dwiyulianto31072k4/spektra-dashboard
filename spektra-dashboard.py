@@ -141,40 +141,42 @@ if 'promo_mapping_completed' not in st.session_state:
 # Function to handle data upload and preprocessing
 def upload_and_preprocess():
     st.markdown('<p class="section-title">Upload Customer Data</p>', unsafe_allow_html=True)
-    
+
     uploaded_file = st.file_uploader("Upload Excel file with customer data", type=["xlsx", "xls"])
     
     if uploaded_file is not None:
         st.session_state.uploaded_file_name = uploaded_file.name
-        
+
         try:
-            data = pd.read_excel(uploaded_file)
+            data = pd.read_excel(uploaded_file, dtype=str)  # Baca semua kolom sebagai string (aman untuk tanggal)
+
             st.success(f"File '{uploaded_file.name}' successfully loaded with {data.shape[0]} rows and {data.shape[1]} columns!")
-            
-            # Display data preview
             st.markdown('<p class="section-title">Data Preview</p>', unsafe_allow_html=True)
             st.dataframe(data.head())
 
-            st.markdown('<p class="section-title">Data Preprocessing</p>', unsafe_allow_html=True)
-            date_cols = [col for col in data.columns if 'DATE' in col]
-            date_cols = st.multiselect("Select date columns to convert", options=data.columns.tolist(), default=date_cols)
+            # Deteksi otomatis kolom dengan 'DATE' di namanya
+            date_cols = [col for col in data.columns if 'DATE' in col.upper()]
+            st.markdown(f"🔍 Auto-detected date columns: `{', '.join(date_cols)}`")
 
             if st.button("Preprocess Data"):
                 with st.spinner("Preprocessing data..."):
                     processed_data = data.copy()
 
-                    # Convert date columns
+                    # Konversi tanggal dari format YYYYMMDD
                     for col in date_cols:
-                        processed_data[col] = pd.to_datetime(processed_data[col], errors='coerce')
+                        processed_data[col] = (
+                            processed_data[col]
+                            .astype(str)
+                            .str.replace(r"[^\d]", "", regex=True)  # Hapus koma/titik
+                            .apply(lambda x: pd.to_datetime(x, format="%Y%m%d", errors="coerce"))
+                        )
 
                     # Hitung usia jika ada kolom BIRTH_DATE
                     if 'BIRTH_DATE' in processed_data.columns:
-                        current_year = datetime.datetime.now().year
-                        processed_data['Usia'] = current_year - processed_data['BIRTH_DATE'].dt.year
+                        processed_data['Usia'] = datetime.datetime.now().year - processed_data['BIRTH_DATE'].dt.year
 
-                    # === Default Strategy ===
-                    # Median untuk numeric, Mode untuk categorical
-                    numeric_cols = processed_data.select_dtypes(include=['int64', 'float64']).columns
+                    # Handle missing values (default: median/mode)
+                    numeric_cols = processed_data.select_dtypes(include=['float64', 'int64']).columns
                     categorical_cols = processed_data.select_dtypes(include=['object']).columns
 
                     for col in numeric_cols:
@@ -188,11 +190,13 @@ def upload_and_preprocess():
                     if 'JMH_CON_NON_MPF' in processed_data.columns:
                         processed_data.drop(columns=['JMH_CON_NON_MPF'], inplace=True)
 
+                    # Tambahkan fitur tambahan
                     processed_data['PROCESSING_DATE'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     if "TOTAL_PRODUCT_MPF" in processed_data.columns:
-                        processed_data["Multi-Transaction_Customer"] = processed_data["TOTAL_PRODUCT_MPF"].apply(lambda x: 1 if x > 1 else 0)
+                        processed_data["Multi-Transaction_Customer"] = processed_data["TOTAL_PRODUCT_MPF"].astype(int).apply(lambda x: 1 if x > 1 else 0)
 
-                    st.success("Data preprocessing completed!")
+                    # Tampilkan hasil
+                    st.success("✅ Data preprocessing completed!")
                     st.dataframe(processed_data.head())
 
                     st.session_state.data = processed_data
@@ -203,13 +207,13 @@ def upload_and_preprocess():
                     st.info("You can now proceed to the Exploratory Data Analysis section.")
 
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"❌ Error: {e}")
             st.warning("Please check your file and try again.")
     
     else:
         if st.button("Use Example Data"):
             example_data = create_example_data()
-            st.success("Example data loaded successfully!")
+            st.success("✅ Example data loaded successfully!")
             st.session_state.data = example_data
             st.session_state.uploaded_file_name = "example_data.xlsx"
             example_data.to_excel("temp/processed_data.xlsx", index=False)
@@ -217,6 +221,7 @@ def upload_and_preprocess():
             st.session_state.eda_completed = True
             st.markdown("### Next Steps")
             st.info("You can now proceed to the Exploratory Data Analysis section.")
+
 
 # Function to create example data
 def create_example_data(n=500):
