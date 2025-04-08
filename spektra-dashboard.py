@@ -656,24 +656,30 @@ def exploratory_data_analysis():
             else:
                 st.info("Number of products data not available.")
         
-        with col2:
-            # Transaction amount vs product category
-            if 'TOTAL_AMOUNT_MPF' in data.columns and 'MPF_CATEGORIES_TAKEN' in data.columns:
-                # Group by product category
-                product_amount = data.groupby('MPF_CATEGORIES_TAKEN')['TOTAL_AMOUNT_MPF'].mean().reset_index()
-                product_amount.columns = ['Product Category', 'Average Amount']
-                
-             fig = px.bar(product_amount, 
-             x='Product Category', 
-             y='Average Amount',
-             title="Average Transaction Amount by Product Category",
-             color='Average Amount',
-             color_continuous_scale=px.colors.sequential.Blues)
+with col2:
+    if 'TOTAL_AMOUNT_MPF' in data.columns and 'MPF_CATEGORIES_TAKEN' in data.columns:
+        product_amount = data.groupby('MPF_CATEGORIES_TAKEN')['TOTAL_AMOUNT_MPF'].mean().reset_index()
+        product_amount.columns = ['Product Category', 'Average Amount']
+
+        fig = px.bar(product_amount, 
+                     x='Product Category', 
+                     y='Average Amount',
+                     title="Average Transaction Amount by Product Category",
+                     color='Average Amount',
+                     color_continuous_scale=px.colors.sequential.Blues)
+
+        fig.update_layout(
+            height=400,
+            margin=dict(l=20, r=20, t=40, b=20),
+            paper_bgcolor="white",
+            plot_bgcolor="rgba(0,0,0,0)"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Required columns not available for this visualization.")
 
 
-              import streamlit as st
-
-# Continue the last section of Transaction Patterns: Average Transaction Amount by Product Category
                 fig = px.bar(product_amount, 
                             x='Product Category', 
                             y='Average Amount',
