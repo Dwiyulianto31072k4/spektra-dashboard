@@ -633,25 +633,28 @@ def exploratory_data_analysis():
         # Additional visualization: Average Transaction Amount by Product Category
         with st.container():
             if 'TOTAL_AMOUNT_MPF' in data.columns and 'MPF_CATEGORIES_TAKEN' in data.columns:
-                product_amount = data.groupby('MPF_CATEGORIES_TAKEN')['TOTAL_AMOUNT_MPF'].mean().reset_index()
-                product_amount.columns = ['Product Category', 'Average Amount']
+        # Konversi ke numeric untuk mencegah error
+                data['TOTAL_AMOUNT_MPF'] = pd.to_numeric(data['TOTAL_AMOUNT_MPF'], errors='coerce')
+                product_amount = data.groupby('MPF_CATEGORIES_TAKEN')['TOTAL_AMOUNT_MPF'].mean().reset_index()product_amount.columns = ['Product Category', 'Average Amount']
                 fig = px.bar(
                     product_amount, 
                     x='Product Category', 
                     y='Average Amount',
                     title="Average Transaction Amount by Product Category",
                     color='Average Amount',
-                    color_continuous_scale=px.colors.sequential.Blues
-                )
+                    color_continuous_scale=px.colors.sequential.Blues)
+                
                 fig.update_layout(
                     height=400,
                     margin=dict(l=20, r=20, t=40, b=20),
                     paper_bgcolor="white",
-                    plot_bgcolor="rgba(0,0,0,0)"
-                )
+                    plot_bgcolor="rgba(0,0,0,0)")
+                
                 st.plotly_chart(fig, use_container_width=True)
+            
             else:
                 st.info("Required columns not available for this visualization.")
+
 
 # Navigation routing
 if selected_page == "Upload & Preprocessing":
