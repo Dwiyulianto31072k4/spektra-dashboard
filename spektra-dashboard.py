@@ -329,6 +329,87 @@ def create_example_data(n=500):
     df['Usia'] = 2024 - df['BIRTH_DATE'].dt.year
     return df
 
+
+def segmentation_analysis():
+    st.markdown('<p class="section-title">Segmentation Analysis (RFM + K-Means)</p>', unsafe_allow_html=True)
+
+    if st.session_state.data is None:
+        st.warning("Please upload and preprocess your data first.")
+        return
+
+    df = st.session_state.data.copy()
+
+    # Pilih kolom untuk RFM
+    st.markdown("### Pilih Kolom RFM dan Parameter Clustering")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        recency_col = st.selectbox("Recency (tanggal transaksi terakhir)", df.columns, index=df.columns.get_loc("LAST_MPF_DATE") if "LAST_MPF_DATE" in df.columns else 0)
+    with col2:
+        freq_col = st.selectbox("Frequency (jumlah produk)", df.columns, index=df.columns.get_loc("TOTAL_PRODUCT_MPF") if "TOTAL_PRODUCT_MPF" in df.columns else 0)
+    with col3:
+        mon_col = st.selectbox("Monetary (total amount)", df.columns, index=df.columns.get_loc("TOTAL_AMOUNT_MPF") if "TOTAL_AMOUNT_MPF" in df.columns else 0)
+
+    cluster_k = st.slider("Pilih jumlah cluster (k)", min_value=2, max_value=10, value=4)
+
+    if st.button("Lakukan Segmentasi"):
+        with st.spinner("Memproses segmentasi..."):
+            now = df[recency_col].max() + pd.Timedelta(days=1)
+            rfm = df.groupby('CUST_NO').agg({
+                recency_col: 'max',
+                freq_col: 'sum',
+                mon_col: 'sum',
+                'BIRTH_DATE': 'max',
+                'Multi-Transaction_Customer': 'max' if 'Multi-Transaction_Customer' in df.columns else lambda x: 0
+            }).reset_index()
+
+            rfm['Recency'] = (now - rfm[recency_col]).dt.days
+            rfm['Frequency'] = rfm[freq_col]
+            rfm['Monetary'] = rfm[mon_col]
+            rfm['Usia'] = 2024 - rfm['BIRTH_DATE'].dt.year
+            rfm['Usia_Segment'] = rfm['Usia'].apply(lambda x: 1 if 25 <= x <= 50 else 0)
+            rfm['Frequency_log'] = np.log1p(rfm['Frequency'])
+            rfm['Monetary_log'] = np.log1p(rfm['Monetary'])
+
+            features = ['Recency', 'Frequency_log', 'Monetary_log', 'Multi-Transaction_Customer', 'Usia_Segment']
+            rfm_scaled = rfm[features].apply(zscore)
+
+            kmeans = KMeans(n_clusters=cluster_k, random_state=42, n_init='auto')
+            rfm['Cluster'] = kmeans.fit_predict(rfm_scaled)
+
+            cluster_score = rfm.groupby('Cluster').agg({
+                'Recency': 'mean',
+                'Frequency_log': 'mean',
+                'Monetary_log': 'mean',
+                'Multi-Transaction_Customer': 'mean',
+                'Usia_Segment': 'mean'
+            }).reset_index()
+            cluster_score['Recency_Score'] = 1 / (cluster_score['Recency'] + 1)
+            cluster_score['Total_Score'] = (
+                cluster_score['Recency_Score'] +
+                cluster_score['Frequency_log'] +
+                cluster_score['Monetary_log'] +
+                cluster_score['Multi-Transaction_Customer'] +
+                cluster_score['Usia_Segment']
+            )
+            n_invited = int(0.5 * cluster_k)
+            top_clusters = cluster_score.sort_values('Total_Score', ascending=False).head(n_invited)['Cluster'].tolist()
+            rfm['Layak_Diundang'] = rfm['Cluster'].apply(lambda x: '✅ Diundang' if x in top_clusters else '❌ Tidak')
+
+            st.session_state.segmented_data = rfm
+            st.session_state.segmentation_completed = True
+
+            st.success("Segmentasi selesai!")
+            st.dataframe(rfm[['CUST_NO', 'Recency', 'Frequency', 'Monetary', 'Cluster', 'Layak_Diundang']].head(10))
+
+            fig = px.scatter(
+                rfm, x='Recency', y='Monetary_log',
+                color='Cluster',
+                title="Visualisasi Cluster Berdasarkan Recency & Monetary",
+                hover_data=['CUST_NO', 'Frequency', 'Monetary', 'Layak_Diundang']
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+
 # Function for Exploratory Data Analysis (EDA)
 def exploratory_data_analysis():
     st.markdown('<p class="section-title">Exploratory Data Analysis</p>', unsafe_allow_html=True)
@@ -608,8 +689,11 @@ if selected_page == "Upload & Preprocessing":
     upload_and_preprocess()
 elif selected_page == "Exploratory Data Analysis":
     exploratory_data_analysis()
-# Additional pages like "Segmentation Analysis", "Promo Mapping", "Dashboard", and "Export & Documentation"
-# should be implemented similarly.
+elif selected_page == "Segmentation Analysis":
+    segmentation_analysis()
+
+
+
 
 # Footer
 st.markdown("""
